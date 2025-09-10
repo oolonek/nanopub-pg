@@ -1,0 +1,171 @@
+use nanopub::Nanopub;
+use sophia::api::dataset::Dataset;
+use sophia::api::quad::Quad;
+use sophia::api::term::Term;
+use std::collections::{HashMap, HashSet};
+
+pub fn mermaid_from_nanopub(np: &Nanopub) -> String {
+    let mut id_map: HashMap<String, String> = HashMap::new();
+    let mut next_id: usize = 0;
+    let mut node_defs: HashMap<&'static str, Vec<String>> = HashMap::new();
+    let mut edges: HashMap<&'static str, Vec<String>> = HashMap::new();
+    let mut group_nodes: HashMap<&'static str, HashSet<String>> = HashMap::new();
+
+    let mut get_node_id = |label: &str| -> String {
+        if let Some(id) = id_map.get(label) {
+            return id.clone();
+        }
+        let id = format!("N{}", next_id);
+        next_id += 1;
+        id_map.insert(label.to_string(), id.clone());
+        id
+    };
+
+    for res in np.dataset.quads() {
+        if let Ok(q) = res {
+            let gname = {
+                let g = q.g();
+                if let Some(iri) = g.and_then(|gn| gn.iri()) {
+                    let gstr = iri.as_str();
+                    if gstr == np.info.assertion.as_str() {
+                        "assertion"
+                    } else if gstr == np.info.prov.as_str() {
+                        "provenance"
+                    } else if gstr == np.info.pubinfo.as_str() {
+                        "pubinfo"
+                    } else if gstr == np.info.head.as_str() {
+                        "head"
+                    } else {
+                        "other"
+                    }
+                } else {
+                    "other"
+                }
+            };
+
+            let s_label = term_label(q.s());
+            let p_iri_str = q
+                .p()
+                .iri()
+                .map(|i| i.as_str().to_owned())
+                .unwrap_or_default();
+            let p_label = pred_label(&p_iri_str);
+            let o_label = term_label(q.o());
+
+            let sid = get_node_id(&s_label);
+            let oid = get_node_id(&o_label);
+
+            node_defs
+                .entry(gname)
+                .or_default()
+                .push(format!("{}[\"{}\"]", sid, escape_mermaid(&s_label)));
+            group_nodes.entry(gname).or_default().insert(sid.clone());
+            node_defs
+                .entry(gname)
+                .or_default()
+                .push(format!("{}[\"{}\"]", oid, escape_mermaid(&o_label)));
+            group_nodes.entry(gname).or_default().insert(oid.clone());
+
+            edges
+                .entry(gname)
+                .or_default()
+                .push(format!("{} -- {} --> {}", sid, escape_mermaid(&p_label), oid));
+        }
+    }
+
+    for defs in node_defs.values_mut() {
+        defs.sort();
+        defs.dedup();
+    }
+
+    let mut out = String::new();
+    out.push_str("graph LR\n");
+    // Classes for coloring per graph group
+    out.push_str(
+        "  classDef head fill:#E3F2FD,stroke:#1565C0,stroke-width:1px,color:#0D47A1;\n",
+    );
+    out.push_str(
+        "  classDef assertion fill:#E8F5E9,stroke:#2E7D32,stroke-width:1px,color:#1B5E20;\n",
+    );
+    out.push_str(
+        "  classDef provenance fill:#FFF3E0,stroke:#EF6C00,stroke-width:1px,color:#E65100;\n",
+    );
+    out.push_str(
+        "  classDef pubinfo fill:#F3E5F5,stroke:#6A1B9A,stroke-width:1px,color:#4A148C;\n",
+    );
+    out.push_str(
+        "  classDef other fill:#ECEFF1,stroke:#455A64,stroke-width:1px,color:#263238;\n",
+    );
+
+    for gname in ["head", "assertion", "provenance", "pubinfo", "other"] {
+        if let Some(defs) = node_defs.get(gname) {
+            if !defs.is_empty() {
+                out.push_str(&format!("  subgraph {}\n", gname));
+                for n in defs {
+                    out.push_str("    ");
+                    out.push_str(n);
+                    out.push_str("\n");
+                }
+                if let Some(es) = edges.get(gname) {
+                    for e in es {
+                        out.push_str("    ");
+                        out.push_str(e);
+                        out.push_str("\n");
+                    }
+                }
+                out.push_str("  end\n");
+            }
+        }
+    }
+
+    // Assign classes to nodes per group
+    for gname in ["head", "assertion", "provenance", "pubinfo", "other"] {
+        if let Some(ids) = group_nodes.get(gname) {
+            if !ids.is_empty() {
+                let mut list: Vec<_> = ids.iter().cloned().collect();
+                list.sort();
+                out.push_str("  class ");
+                out.push_str(&list.join(","));
+                out.push_str(" ");
+                out.push_str(gname);
+                out.push_str(";\n");
+            }
+        }
+    }
+
+    out
+}
+
+fn term_label<T: Term>(t: T) -> String {
+    if let Some(iri) = t.iri() {
+        compact_iri(iri.as_str())
+    } else if let Some(lit) = t.lexical_form() {
+        let mut s = lit.to_string();
+        if s.trim().is_empty() {
+            return "(empty)".to_string();
+        }
+        if s.len() > 64 {
+            s.truncate(61);
+            s.push_str("...");
+        }
+        s
+    } else {
+        "_:bnode".to_string()
+    }
+}
+
+fn pred_label(p: &str) -> String { compact_iri(p) }
+
+fn compact_iri(s: &str) -> String {
+    let mut label = s;
+    if let Some(pos) = s.rfind('#') { label = &s[pos + 1..]; }
+    else if let Some(pos) = s.rfind('/') { label = &s[pos + 1..]; }
+    label.to_string()
+}
+
+fn escape_mermaid(s: &str) -> String {
+    let trimmed = s.trim();
+    if trimmed.is_empty() { return "(empty)".to_string(); }
+    trimmed.replace('"', "\\\"")
+}
+

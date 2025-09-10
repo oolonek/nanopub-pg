@@ -109,3 +109,19 @@ References
 
 - Docs: https://vemonet.github.io/nanopub-rs/packages/#check-nanopubs
 - Crate: https://crates.io/crates/nanopub
+
+Project Structure
+-----------------
+
+- `src/main.rs` — thin entry point wiring modules together.
+- `src/args.rs` — minimal CLI parsing (`--mermaid`, inputs).
+- `src/app.rs` — app orchestration: runtime, per-input processing, calling render/validate.
+- `src/loader.rs` — load a `Nanopub` from URI (async fetch) or local file.
+- `src/renderer.rs` — Mermaid graph rendering (grouped subgraphs and colors).
+
+Contributing
+------------
+
+- Keep modules focused (I/O, rendering, orchestration).
+- Avoid printing in library-like modules (renderer/loader), return strings/results instead. The app layer decides what to print.
+- Prefer small functions with clear inputs/outputs; no global state.
