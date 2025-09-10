@@ -27,7 +27,9 @@ fn main() {
     let rt = tokio::runtime::Runtime::new().expect("Failed to create Tokio runtime");
 
     for (idx, input) in args.iter().enumerate() {
-        println!("----\nInput: {}", input);
+        if !output_mermaid {
+            println!("----\nInput: {}", input);
+        }
 
         // Decide whether this is a URI or a file path
         let is_uri = input.starts_with("http://") || input.starts_with("https://");
@@ -47,32 +49,31 @@ fn main() {
 
         match np_result {
             Ok(np) => {
-                // Validate the nanopub (checks trusty hash and signature when present)
-                match np.check() {
-                    Ok(checked) => {
-                        if output_mermaid {
-                            let mmd = mermaid_from_nanopub(&checked);
-                            if args.len() == 1 {
-                                // Single input: print to stdout
-                                println!("{}", mmd);
-                            } else {
-                                // Multiple inputs: write separate files
-                                let fname = format!("np_{idx}.mmd");
-                                if let Err(e) = fs::write(&fname, mmd) {
-                                    eprintln!("Failed to write {}: {}", fname, e);
-                                } else {
-                                    println!("Mermaid saved to {}", fname);
-                                }
-                            }
-                        }
-                        // Print a concise info summary
-                        println!("{}", checked.info);
-                        match checked.rdf() {
-                            Ok(rdf) => println!("RDF length: {} bytes", rdf.len()),
-                            Err(e) => eprintln!("Could not serialize RDF: {}", e.0),
+                if output_mermaid {
+                    // In graph mode, avoid extra stdout from check(); just render the dataset.
+                    let mmd = mermaid_from_nanopub(&np);
+                    if args.len() == 1 {
+                        println!("{}", mmd);
+                    } else {
+                        let fname = format!("np_{idx}.mmd");
+                        if let Err(e) = fs::write(&fname, mmd) {
+                            eprintln!("Failed to write {}: {}", fname, e);
+                        } else if !output_mermaid {
+                            println!("Mermaid saved to {}", fname);
                         }
                     }
-                    Err(e) => eprintln!("❌ Check failed: {}", e.0),
+                } else {
+                    // Validate the nanopub (checks trusty hash and signature when present)
+                    match np.check() {
+                        Ok(checked) => {
+                            println!("{}", checked.info);
+                            match checked.rdf() {
+                                Ok(rdf) => println!("RDF length: {} bytes", rdf.len()),
+                                Err(e) => eprintln!("Could not serialize RDF: {}", e.0),
+                            }
+                        }
+                        Err(e) => eprintln!("❌ Check failed: {}", e.0),
+                    }
                 }
             }
             Err(e) => eprintln!("❌ Could not load Nanopub: {}", e.0),
@@ -188,6 +189,9 @@ fn term_label<T: Term>(t: T) -> String {
         compact_iri(iri.as_str())
     } else if let Some(lit) = t.lexical_form() {
         let mut s = lit.to_string();
+        if s.trim().is_empty() {
+            return "(empty)".to_string();
+        }
         if s.len() > 64 {
             s.truncate(61);
             s.push_str("...");
@@ -213,5 +217,9 @@ fn compact_iri(s: &str) -> String {
 }
 
 fn escape_mermaid(s: &str) -> String {
-    s.replace('"', "\\\"")
+    let trimmed = s.trim();
+    if trimmed.is_empty() {
+        return "(empty)".to_string();
+    }
+    trimmed.replace('"', "\\\"")
 }
