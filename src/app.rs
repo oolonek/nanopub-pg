@@ -1,7 +1,6 @@
 use crate::args::Options;
 use crate::loader::load_nanopub;
 use crate::renderer::mermaid_from_nanopub;
-// use nanopub::Nanopub; // not needed in this module
 
 pub fn run(opts: Options) {
     let mut inputs = opts.inputs;
