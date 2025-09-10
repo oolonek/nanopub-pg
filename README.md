@@ -15,6 +15,11 @@ Usage
 - Check a local file (TriG/TriX) containing a single Nanopublication:
   - `cargo run -- ./path/to/np.trig`
 
+- Output a Mermaid graph of the Nanopub (to stdout or files):
+  - `cargo run -- --mermaid https://w3id.org/np/RAltRkGOtHoj5LcBJZ62AMVOAVc0hnxt45LMaCXgxJ4fw > np.mmd`
+  - For multiple inputs, files `np_0.mmd`, `np_1.mmd`, … are created.
+  - View with VS Code Mermaid preview or render via `mmdc` (Mermaid CLI).
+
 What it does
 ------------
 

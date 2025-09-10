@@ -1,0 +1,70 @@
+graph LR
+  subgraph head
+    N0["RATGmPlZuuhgKAcqSICT4Qg_J9z5N9rVQbdGt4hJ7yMJM"]
+    N1["Nanopublication"]
+    N2["assertion"]
+    N3["provenance"]
+    N4["pubinfo"]
+    N0 -- type --> N1
+    N0 -- hasAssertion --> N2
+    N0 -- hasProvenance --> N3
+    N0 -- hasPublicationInfo --> N4
+  end
+  subgraph assertion
+    N5["association"]
+    N6["OrganismTaxonToChemicalAssociation"]
+    N7["Q3006048"]
+    N8["RO_0002162"]
+    N9["Q105674316"]
+    N5 -- type --> N6
+    N5 -- object --> N7
+    N5 -- predicate --> N8
+    N5 -- subject --> N9
+  end
+  subgraph provenance
+    N10["research-activity"]
+    N11["ol2030907"]
+    N12["ScholarlyWork"]
+    N2["assertion"]
+    N2 -- wasGeneratedBy --> N10
+    N11 -- type --> N12
+    N10 -- description --> N11
+  end
+  subgraph pubinfo
+    N0["RATGmPlZuuhgKAcqSICT4Qg_J9z5N9rVQbdGt4hJ7yMJM"]
+    N13["2024-02-07T10:09:11.310Z"]
+    N14["0000-0003-3389-2191"]
+    N15["(empty)"]
+    N16["BiodivNanopub"]
+    N17["trigocherrin A in taxon Trigonostemon cherrieri"]
+    N18["RA_bMeVDu1KMzSAdjjedJfMFgcyGZ-G3FbELL6J1vFZ_o"]
+    N19["RAA2MfqdBCzmz9yVWjKLXNbyfBNcwsMmOqcNUxkk1maIM"]
+    N20["RAh1gm83JiG5M6kDxXhaYT1l49nCzyrckMvTzcPn-iv90"]
+    N21["RABTEyo9MqchL1TXRTnaND6ISSV-FDd5IY1Wl1g4E7BOw"]
+    N22["Trigonostemon cherrieri - species of plant"]
+    N23["trigocherrin A - chemical compound"]
+    N24["sig"]
+    N25["RSA"]
+    N26["MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCNgV7KvEdXGXu+GLDP17lXL..."]
+    N27["JGXsSD55f/hTJtyVxldEda0icW/iz+7SiaiZpRqCOoQ8VeQE/x+8UJ4QwcUjP..."]
+    N5["association"]
+    N7["Q3006048"]
+    N9["Q105674316"]
+    N0 -- created --> N13
+    N0 -- creator --> N14
+    N0 -- license --> N15
+    N0 -- hasNanopubType --> N16
+    N0 -- introduces --> N5
+    N0 -- label --> N17
+    N0 -- wasCreatedFromProvenanceTemplate --> N18
+    N0 -- wasCreatedFromPubinfoTemplate --> N19
+    N0 -- wasCreatedFromPubinfoTemplate --> N20
+    N0 -- wasCreatedFromTemplate --> N21
+    N7 -- hasLabelFromApi --> N22
+    N9 -- hasLabelFromApi --> N23
+    N24 -- hasAlgorithm --> N25
+    N24 -- hasPublicKey --> N26
+    N24 -- hasSignature --> N27
+    N24 -- hasSignatureTarget --> N0
+  end
+
