@@ -2,7 +2,7 @@ use nanopub::Nanopub;
 use sophia::api::dataset::Dataset; // trait for iterating quads
 use sophia::api::quad::Quad; // quad accessor methods s/p/o/g
 use sophia::api::term::Term;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::env;
 use std::fs;
 
@@ -87,6 +87,7 @@ fn mermaid_from_nanopub(np: &Nanopub) -> String {
     let mut next_id: usize = 0;
     let mut node_defs: HashMap<&'static str, Vec<String>> = HashMap::new();
     let mut edges: HashMap<&'static str, Vec<String>> = HashMap::new();
+    let mut group_nodes: HashMap<&'static str, HashSet<String>> = HashMap::new();
 
     // iterate quads and group by graph
 
@@ -139,10 +140,12 @@ fn mermaid_from_nanopub(np: &Nanopub) -> String {
                 .entry(gname)
                 .or_default()
                 .push(format!("{}[\"{}\"]", sid, escape_mermaid(&s_label)));
+            group_nodes.entry(gname).or_default().insert(sid.clone());
             node_defs
                 .entry(gname)
                 .or_default()
                 .push(format!("{}[\"{}\"]", oid, escape_mermaid(&o_label)));
+            group_nodes.entry(gname).or_default().insert(oid.clone());
 
             edges
                 .entry(gname)
@@ -159,6 +162,22 @@ fn mermaid_from_nanopub(np: &Nanopub) -> String {
 
     let mut out = String::new();
     out.push_str("graph LR\n");
+    // Classes for coloring per graph group
+    out.push_str(
+        "  classDef head fill:#E3F2FD,stroke:#1565C0,stroke-width:1px,color:#0D47A1;\n",
+    );
+    out.push_str(
+        "  classDef assertion fill:#E8F5E9,stroke:#2E7D32,stroke-width:1px,color:#1B5E20;\n",
+    );
+    out.push_str(
+        "  classDef provenance fill:#FFF3E0,stroke:#EF6C00,stroke-width:1px,color:#E65100;\n",
+    );
+    out.push_str(
+        "  classDef pubinfo fill:#F3E5F5,stroke:#6A1B9A,stroke-width:1px,color:#4A148C;\n",
+    );
+    out.push_str(
+        "  classDef other fill:#ECEFF1,stroke:#455A64,stroke-width:1px,color:#263238;\n",
+    );
 
     for gname in ["head", "assertion", "provenance", "pubinfo", "other"] {
         if let Some(defs) = node_defs.get(gname) {
@@ -177,6 +196,21 @@ fn mermaid_from_nanopub(np: &Nanopub) -> String {
                     }
                 }
                 out.push_str("  end\n");
+            }
+        }
+    }
+
+    // Assign classes to nodes per group
+    for gname in ["head", "assertion", "provenance", "pubinfo", "other"] {
+        if let Some(ids) = group_nodes.get(gname) {
+            if !ids.is_empty() {
+                let mut list: Vec<_> = ids.iter().cloned().collect();
+                list.sort();
+                out.push_str("  class ");
+                out.push_str(&list.join(","));
+                out.push_str(" ");
+                out.push_str(gname);
+                out.push_str(";\n");
             }
         }
     }
