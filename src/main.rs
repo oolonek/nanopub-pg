@@ -12,7 +12,7 @@ fn main() {
 
     // Default example URI if nothing provided
     if args.is_empty() {
-        args.push("https://w3id.org/np/RAltRkGOtHoj5LcBJZ62AMVOAVc0hnxt45LMaCXgxJ4fw".to_string());
+        args.push("https://w3id.org/np/RATGmPlZuuhgKAcqSICT4Qg_J9z5N9rVQbdGt4hJ7yMJM".to_string());
         eprintln!("No input provided. Using example URI.\n");
     }
 
@@ -27,9 +27,7 @@ fn main() {
     let rt = tokio::runtime::Runtime::new().expect("Failed to create Tokio runtime");
 
     for (idx, input) in args.iter().enumerate() {
-        if !output_mermaid {
-            println!("----\nInput: {}", input);
-        }
+        println!("----\nInput: {}", input);
 
         // Decide whether this is a URI or a file path
         let is_uri = input.starts_with("http://") || input.starts_with("https://");
@@ -49,30 +47,32 @@ fn main() {
 
         match np_result {
             Ok(np) => {
-                if output_mermaid {
-                    let mmd = mermaid_from_nanopub(&np);
-                    if args.len() == 1 {
-                        println!("{}", mmd);
-                    } else {
-                        let fname = format!("np_{idx}.mmd");
-                        if let Err(e) = fs::write(&fname, mmd) {
-                            eprintln!("Failed to write {}: {}", fname, e);
-                        } else {
-                            println!("Mermaid saved to {}", fname);
-                        }
-                    }
-                } else {
-                    // Validate the nanopub (checks trusty hash and signature when present)
-                    match np.check() {
-                        Ok(checked) => {
-                            println!("{}", checked.info);
-                            match checked.rdf() {
-                                Ok(rdf) => println!("RDF length: {} bytes", rdf.len()),
-                                Err(e) => eprintln!("Could not serialize RDF: {}", e.0),
+                // Validate the nanopub (checks trusty hash and signature when present)
+                match np.check() {
+                    Ok(checked) => {
+                        if output_mermaid {
+                            let mmd = mermaid_from_nanopub(&checked);
+                            if args.len() == 1 {
+                                // Single input: print to stdout
+                                println!("{}", mmd);
+                            } else {
+                                // Multiple inputs: write separate files
+                                let fname = format!("np_{idx}.mmd");
+                                if let Err(e) = fs::write(&fname, mmd) {
+                                    eprintln!("Failed to write {}: {}", fname, e);
+                                } else {
+                                    println!("Mermaid saved to {}", fname);
+                                }
                             }
                         }
-                        Err(e) => eprintln!("❌ Check failed: {}", e.0),
+                        // Print a concise info summary
+                        println!("{}", checked.info);
+                        match checked.rdf() {
+                            Ok(rdf) => println!("RDF length: {} bytes", rdf.len()),
+                            Err(e) => eprintln!("Could not serialize RDF: {}", e.0),
+                        }
                     }
+                    Err(e) => eprintln!("❌ Check failed: {}", e.0),
                 }
             }
             Err(e) => eprintln!("❌ Could not load Nanopub: {}", e.0),
@@ -188,9 +188,6 @@ fn term_label<T: Term>(t: T) -> String {
         compact_iri(iri.as_str())
     } else if let Some(lit) = t.lexical_form() {
         let mut s = lit.to_string();
-        if s.is_empty() {
-            return "(empty)".to_string();
-        }
         if s.len() > 64 {
             s.truncate(61);
             s.push_str("...");
@@ -216,9 +213,5 @@ fn compact_iri(s: &str) -> String {
 }
 
 fn escape_mermaid(s: &str) -> String {
-    let trimmed = s.trim();
-    if trimmed.is_empty() {
-        return "(empty)".to_string();
-    }
-    trimmed.replace('"', "\\\"")
+    s.replace('"', "\\\"")
 }
